@@ -1,19 +1,7 @@
 // lib/screens/alarm_ring_screen.dart
 //
 // Full-screen "alarm clock" style screen shown when a medicine reminder
-// fires. Loops an alarm tone until the user taps Taken or Not Taken.
-//
-// ADD THIS DEPENDENCY to pubspec.yaml (flutter_tts is no longer needed):
-//   audioplayers: ^6.1.0
-//
-// You will also need a looping alarm sound bundled as an asset, e.g.
-//   assets/sounds/alarm_tone.mp3
-// registered under `flutter: assets:` in pubspec.yaml.
-//
-// Playback is explicitly routed through the Android ALARM stream / iOS
-// playback category in _startAlarm() below - NOT the audioplayers
-// default (media/notification) - so the tone survives Do Not Disturb,
-// Silent mode, and a zeroed media volume slider.
+// fires. Loops an alarm tone until the user taps Taken, Not Taken, or Snooze.
 
 import 'dart:async';
 import 'dart:io';
@@ -66,12 +54,15 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
       MethodChannel('com.example.med_reminder/alarm');
 
   Future<void> _dismissScreen() async {
+    await _stopAlarm();
     try {
       await _alarmChannel.invokeMethod('dismissAlarmScreen');
     } catch (e) {
       debugPrint('AlarmRingScreen: dismissAlarmScreen failed: $e');
     }
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -165,24 +156,29 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
 
       final customPath = widget.customSoundPath;
       if (customPath != null && await File(customPath).exists()) {
-        await _player.play(DeviceFileSource(customPath), volume: 0.8);
+        await _player.play(DeviceFileSource(customPath), volume: 0.9);
       } else {
         if (customPath != null) {
           debugPrint('AlarmRingScreen: custom sound file missing at '
               '$customPath, falling back to default tone.');
         }
-        await _player.play(AssetSource('sounds/alarm_tone.mp3'), volume: 0.8);
+        await _player.play(AssetSource('sounds/alarm_tone.mp3'), volume: 0.9);
       }
     } catch (e, st) {
-      debugPrint('AlarmRingScreen: alarm tone playback failed: $e\n$st');
+      debugPrint('AlarmRingScreen: audio playback error (native sound active): $e\n$st');
     }
   }
 
   Future<void> _stopAlarm() async {
     try {
+      await _alarmChannel.invokeMethod('stopAlarmSound');
+    } catch (e) {
+      debugPrint('AlarmRingScreen: stopAlarmSound channel error: $e');
+    }
+    try {
       await _player.stop();
     } catch (e) {
-      debugPrint('AlarmRingScreen: stopping alarm tone failed: $e');
+      debugPrint('AlarmRingScreen: stopping audio player failed: $e');
     }
   }
 
@@ -279,7 +275,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
                 Text(
                   'Medicine Reminder',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 18,
                     letterSpacing: 1.1,
                   ),
@@ -299,7 +295,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
                   Text(
                     widget.dosageInfo,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 20,
                     ),
                   ),
@@ -338,7 +334,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -407,7 +403,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
       label: Text(label,
           style: const TextStyle(color: Colors.white70, fontSize: 13)),
       style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
         padding: const EdgeInsets.symmetric(vertical: 10),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),

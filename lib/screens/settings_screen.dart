@@ -101,8 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text(
-            'Shown as a call button on the alarm screen - reachable even '
-            'while the phone is locked.',
+            'Shown on the alarm screen.',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
           ),
           const SizedBox(height: 12),

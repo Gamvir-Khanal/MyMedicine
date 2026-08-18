@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_medicine_cabinet/screens/alarm_ring_screen.dart';
@@ -15,21 +17,45 @@ import 'utils/constants.dart';
 final navigatorKey = GlobalKey<NavigatorState>();
 
 String? _activeAlarmMedicineId;
+String? _pendingAlarmPayload;
+Timer? _pendingAlarmRetryTimer;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ReminderApiService().init();
 
   final themeProvider = ThemeProvider();
   await themeProvider.loadThemeMode();
 
   NotificationService.instance.onAlarmPayload = _onAlarmPayload;
+  await NotificationService.instance.init();
+  await ReminderApiService().init();
 
   runApp(SmartMedicineCabinetApp(themeProvider: themeProvider));
 }
 
 void _onAlarmPayload(String? payload) {
   if (payload == null || payload.isEmpty) return;
+  _pendingAlarmPayload = payload;
+  _processPendingAlarmPayload();
+}
+
+void _processPendingAlarmPayload() {
+  final payload = _pendingAlarmPayload;
+  if (payload == null || payload.isEmpty) return;
+
+  final navState = navigatorKey.currentState;
+  if (navState == null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _processPendingAlarmPayload());
+    _pendingAlarmRetryTimer?.cancel();
+    _pendingAlarmRetryTimer = Timer(const Duration(milliseconds: 100), () {
+      _processPendingAlarmPayload();
+    });
+    return;
+  }
+
+  _pendingAlarmRetryTimer?.cancel();
+  _pendingAlarmRetryTimer = null;
+  _pendingAlarmPayload = null;
 
   final parts = payload.split('|');
   final notificationId = int.tryParse(parts[0]) ?? 0;
@@ -45,38 +71,28 @@ void _onAlarmPayload(String? payload) {
     return;
   }
 
-  void doPush() {
-    final navState = navigatorKey.currentState;
-    if (navState == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => doPush());
-      return;
-    }
+  _activeAlarmMedicineId = medicineId;
 
-    _activeAlarmMedicineId = medicineId;
-
-    navState
-        .push(
-      MaterialPageRoute(
-        builder: (_) => AlarmRingScreen(
-          notificationId: notificationId,
-          medicineId: medicineId,
-          medicineName: medicineName,
-          dosageInfo: dosageInfo,
-          customSoundPath: customSoundPath,
-          reminderId: reminderId,
-          isEscalation: isEscalation,
-        ),
-        fullscreenDialog: true,
+  navState
+      .push(
+    MaterialPageRoute(
+      builder: (_) => AlarmRingScreen(
+        notificationId: notificationId,
+        medicineId: medicineId,
+        medicineName: medicineName,
+        dosageInfo: dosageInfo,
+        customSoundPath: customSoundPath,
+        reminderId: reminderId,
+        isEscalation: isEscalation,
       ),
-    )
-        .then((_) {
-      if (_activeAlarmMedicineId == medicineId) {
-        _activeAlarmMedicineId = null;
-      }
-    });
-  }
-
-  doPush();
+      fullscreenDialog: true,
+    ),
+  )
+      .then((_) {
+    if (_activeAlarmMedicineId == medicineId) {
+      _activeAlarmMedicineId = null;
+    }
+  });
 }
 
 class SmartMedicineCabinetApp extends StatefulWidget {
@@ -95,13 +111,16 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _checkOverlayPermission());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkOverlayPermission();
+      _processPendingAlarmPayload();
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _pendingAlarmRetryTimer?.cancel();
     super.dispose();
   }
 
@@ -109,6 +128,7 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkTimezoneChange();
+      _processPendingAlarmPayload();
     }
   }
 
@@ -117,27 +137,69 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
     if (!changed || !mounted) return;
 
     final context = navigatorKey.currentContext;
-    if (context == null) return;
+    if (context == null || !mounted) return;
     await context.read<ReminderProvider>().rescheduleAllForTimezoneChange();
   }
 
   Future<void> _checkOverlayPermission() async {
     final granted = await NotificationService.instance.hasOverlayPermission();
-    if (granted || !mounted) return;
+    if (!mounted) return;
+
+    if (!granted) {
+      final context = navigatorKey.currentContext;
+      if (context == null || !mounted) return;
+
+      await showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Allow alarm to appear over other apps'),
+          content: const Text(
+            'To make sure your medicine alarm shows up full-screen even '
+            'while you\'re using another app, please allow "Display over '
+            'other apps" for this app in the next screen.\n\n'
+            'Without this, you\'ll still get a notification banner, but '
+            'you\'ll need to tap it to open the alarm.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                NotificationService.instance.requestOverlayPermission();
+              },
+              child: const Text('Allow'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (mounted) {
+      await _checkBatteryOptimizations();
+    }
+  }
+
+  Future<void> _checkBatteryOptimizations() async {
+    final ignoring =
+        await NotificationService.instance.hasIgnoreBatteryOptimizations();
+    if (ignoring || !mounted) return;
 
     final context = navigatorKey.currentContext;
-    if (context == null) return;
+    if (context == null || !mounted) return;
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Allow alarm to appear over other apps'),
+        title: const Text('Allow alarm to run without battery restrictions'),
         content: const Text(
-          'To make sure your medicine alarm shows up full-screen even '
-          'while you\'re using another app, please allow "Display over '
-          'other apps" for this app in the next screen.\n\n'
-          'Without this, you\'ll still get a notification banner, but '
-          'you\'ll need to tap it to open the alarm.',
+          'Some phones delay or silently revoke this app\'s permissions '
+          'if it\'s treated as "unused" in the background, which can '
+          'stop the medicine alarm from showing.\n\n'
+          'Please exclude this app from battery optimization, and if '
+          'asked, also turn off "Remove permissions if app isn\'t used".',
         ),
         actions: [
           TextButton(
@@ -147,7 +209,8 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
           FilledButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              NotificationService.instance.requestOverlayPermission();
+              NotificationService.instance.requestIgnoreBatteryOptimizations();
+              NotificationService.instance.requestDisableAutoRevoke();
             },
             child: const Text('Allow'),
           ),

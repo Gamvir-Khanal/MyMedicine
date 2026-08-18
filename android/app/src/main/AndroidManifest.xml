@@ -4,17 +4,13 @@
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Required to run AlarmService, which does the direct-launch of
-         AlarmRingScreen when the screen is already on/unlocked. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Required for AlarmService to draw AlarmRingScreen over whatever
-         app the user currently has open. Android 10+ removed the
-         foreground-service exemption for this, so this "Display over
-         other apps" permission is the only remaining way to do it -
-         it must be granted manually by the user via system settings,
-         see MainActivity.kt's requestOverlayPermission handler. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="MyMedicine"
         android:name="${applicationName}"
@@ -78,7 +74,7 @@
         <service
             android:name=".AlarmService"
             android:exported="false"
-            android:foregroundServiceType="shortService" />
+            android:foregroundServiceType="mediaPlayback" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

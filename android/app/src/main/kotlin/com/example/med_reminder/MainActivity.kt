@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -12,46 +13,39 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
 
     companion object {
+        private const val TAG = "MainActivity"
         const val ALARM_CHANNEL = "com.example.med_reminder/alarm"
         const val ACTION_OPEN_ALARM_SCREEN = "OPEN_ALARM_SCREEN"
     }
 
     private var alarmMethodChannel: MethodChannel? = null
-
-    // Set when AlarmService cold-launches this Activity (app was fully
-    // killed) - the engine has JUST attached and Dart's listener may not
-    // be wired up yet, so we stash the payload here instead of firing
-    // invokeMethod blind. Dart explicitly pulls it via
-    // "getInitialAlarmPayload" once it's ready to receive it.
     private var pendingAlarmPayload: String? = null
 
-    // Whether to draw over the lock screen (and turn the screen on) must be
-    // scoped to ONLY the moment an alarm is actually being shown - not a
-    // permanent property of this Activity. If this were declared instead
-    // via android:showWhenLocked/android:turnScreenOn on the <activity> tag
-    // in AndroidManifest.xml, it would apply for the Activity's entire
-    // lifetime, meaning EVERY normal resume (e.g. pressing the power button
-    // to wake the phone with the app already open) skips the lock screen
-    // entirely - not just alarm launches. Applying and clearing it here
-    // instead keeps the bypass limited to genuine alarm events.
     private fun setAlarmLockScreenBypass(enabled: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(enabled)
-            setTurnScreenOn(enabled)
-        } else {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(enabled)
+                setTurnScreenOn(enabled)
+            }
             if (enabled) {
+                @Suppress("DEPRECATION")
                 window.addFlags(
                     WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
                 )
             } else {
+                @Suppress("DEPRECATION")
                 window.clearFlags(
                     WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
                 )
             }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error setting lock screen bypass: ${e.message}")
         }
     }
 
@@ -78,70 +72,61 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "getInitialAlarmPayload" -> {
-                    result.success(pendingAlarmPayload)
+                    val payload = pendingAlarmPayload
                     pendingAlarmPayload = null
+                    result.success(payload)
+                }
+                "stopAlarmSound" -> {
+                    AlarmService.stopAlarm(applicationContext)
+                    result.success(null)
                 }
                 "enableAlarmLockScreenBypass" -> {
-                    // Covers the path AlarmService intentionally skips: when
-                    // the screen is locked, flutter_local_notifications'
-                    // full-screen intent is what launches this Activity -
-                    // via its own default launch intent, NOT
-                    // ACTION_OPEN_ALARM_SCREEN. That means
-                    // consumeColdStartAlarmIntent()/onNewIntent() never see
-                    // it and never apply the bypass, so the Activity ends up
-                    // rendering (with sound already playing) behind the
-                    // keyguard instead of over it. Dart calls this the
-                    // moment it knows a genuine alarm response came in -
-                    // from onDidReceiveNotificationResponse - regardless of
-                    // which of the three trigger paths caused it, so it's
-                    // safe/redundant-but-harmless for the native path too.
                     setAlarmLockScreenBypass(true)
                     result.success(null)
                 }
                 "dismissAlarmScreen" -> {
-                    // Called from AlarmRingScreen instead of Navigator.pop().
-                    // Sends this whole task to the back so the OS reveals
-                    // whatever app/screen was in front before the alarm
-                    // interrupted it (e.g. another app, or the lock screen),
-                    // rather than exposing our own HomeScreen underneath.
-                    //
-                    // Must ALSO turn the lock-screen bypass back off here -
-                    // this same Activity instance keeps living (singleTop/
-                    // reordered-to-front, not recreated), so if the flags
-                    // set in setAlarmLockScreenBypass(true) were never
-                    // cleared, every future normal resume of the app would
-                    // keep skipping the lock screen too.
+                    // 1. Stop native alarm sound, vibration & foreground service
+                    AlarmService.stopAlarm(applicationContext)
+                    // 2. Clear lockscreen bypass flags
                     setAlarmLockScreenBypass(false)
-                    // setShowWhenLocked(false) only registers the request;
-                    // the window manager needs an actual layout pass to act
-                    // on it and let the real system keyguard - which was
-                    // only ever occluded, never dismissed, for a secure
-                    // lock - reassert itself as the topmost window. Calling
-                    // moveTaskToBack() synchronously right after risks
-                    // beating that layout pass: this task can lose focus
-                    // before the OS has re-checked whether it's still
-                    // allowed to skip the keyguard, briefly revealing
-                    // whatever this task's own content is (the Flutter
-                    // HomeScreen sitting underneath AlarmRingScreen) instead
-                    // of the real lock screen. Posting to the next frame
-                    // gives the flag change time to land first.
+                    // 3. Send task to back to return to the previously active app or lock screen
                     window.decorView.post {
                         moveTaskToBack(true)
                     }
                     result.success(null)
                 }
+                "hasIgnoreBatteryOptimizations" -> {
+                    val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+                    result.success(pm.isIgnoringBatteryOptimizations(packageName))
+                }
+                "requestIgnoreBatteryOptimizations" -> {
+                    val intent = Intent(
+                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                    result.success(null)
+                }
+                "requestDisableAutoRevoke" -> {
+                    try {
+                        val intent = Intent(
+                            Intent.ACTION_AUTO_REVOKE_PERMISSIONS,
+                            Uri.parse("package:$packageName")
+                        )
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        val intent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:$packageName")
+                        )
+                        startActivity(intent)
+                    }
+                    result.success(null)
+                }
                 "hasOverlayPermission" -> {
-                    // Required for AlarmService to draw AlarmRingScreen over
-                    // whatever app is currently in the foreground. Without
-                    // this, Android 10+ silently blocks the direct-launch
-                    // and only the notification banner shows.
                     result.success(Settings.canDrawOverlays(applicationContext))
                 }
                 "requestOverlayPermission" -> {
-                    // Cannot be granted programmatically - this opens the
-                    // system settings screen where the user must toggle it
-                    // on manually. There is no permission-request dialog
-                    // for SYSTEM_ALERT_WINDOW, unlike runtime permissions.
                     val intent = Intent(
                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         Uri.parse("package:$packageName")
@@ -153,29 +138,42 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Cold-start case: this Activity may have just been created BY
-        // AlarmService's direct-launch intent (app was fully killed).
-        consumeColdStartAlarmIntent(intent)
+        // Process any cold start intent
+        consumeAlarmIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        consumeAlarmIntent(intent)
+    }
 
-        // Warm case: app was already running (foreground or background)
-        // when AlarmService launched us - the engine + channel already
-        // exist, so push straight through to Dart.
-        if (intent.action == ACTION_OPEN_ALARM_SCREEN) {
+    private fun consumeAlarmIntent(intent: Intent?) {
+        if (intent == null) return
+
+        val payload = extractPayload(intent)
+        if (!payload.isNullOrEmpty()) {
+            Log.d(TAG, "consumeAlarmIntent found payload: $payload")
             setAlarmLockScreenBypass(true)
-            val payload = intent.getStringExtra("payload")
+            pendingAlarmPayload = payload
             alarmMethodChannel?.invokeMethod("onAlarmLaunch", payload)
         }
     }
 
-    private fun consumeColdStartAlarmIntent(intent: Intent?) {
-        if (intent?.action == ACTION_OPEN_ALARM_SCREEN) {
-            setAlarmLockScreenBypass(true)
-            pendingAlarmPayload = intent.getStringExtra("payload")
+    private fun extractPayload(intent: Intent): String? {
+        val p1 = intent.getStringExtra("payload")
+        if (!p1.isNullOrEmpty()) return p1
+
+        val p2 = intent.getStringExtra("notification_payload")
+        if (!p2.isNullOrEmpty()) return p2
+
+        val extras = intent.extras
+        if (extras != null) {
+            val ep1 = extras.getString("payload")
+            if (!ep1.isNullOrEmpty()) return ep1
+            val ep2 = extras.getString("notification_payload")
+            if (!ep2.isNullOrEmpty()) return ep2
         }
+        return null
     }
 }

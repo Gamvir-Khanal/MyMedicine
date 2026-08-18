@@ -5,23 +5,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 
-/**
- * Schedules/cancels the SECOND alarm path used only to cover the case
- * flutter_local_notifications' full-screen intent cannot cover: the
- * screen already being on and unlocked when the reminder fires.
- *
- * This runs in parallel with (not instead of) the existing
- * flutter_local_notifications scheduling in notification_service.dart.
- * That plugin still owns the locked-screen / notification-shade /
- * heads-up behavior. This just adds a direct-launch path for the
- * unlocked case, via AlarmReceiver -> AlarmService.
- */
 object AlarmScheduler {
+    private const val TAG = "AlarmScheduler"
 
     fun schedule(context: Context, id: Int, triggerAtMillis: Long, payload: String) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AlarmReceiver::class.java).apply {
+            action = AlarmService.ACTION_START_ALARM
             putExtra("id", id)
             putExtra("payload", payload)
         }
@@ -32,35 +24,66 @@ object AlarmScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
+        val showIntent = Intent(context, MainActivity::class.java).apply {
+            action = MainActivity.ACTION_OPEN_ALARM_SCREEN
+            putExtra("payload", payload)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val showPendingIntent = PendingIntent.getActivity(
+            context,
+            id,
+            showIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent)
+                    alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+                    Log.d(TAG, "Scheduled AlarmClock for id=$id at $triggerAtMillis")
+                } else {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
+                    )
+                    Log.d(TAG, "Scheduled setAndAllowWhileIdle (fallback) for id=$id at $triggerAtMillis")
+                }
+            } else {
+                val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent)
+                alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+                Log.d(TAG, "Scheduled AlarmClock for id=$id at $triggerAtMillis")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule alarm via setAlarmClock, trying setExactAndAllowWhileIdle fallback: ${e.message}")
+            try {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
                 )
-            } else {
-                // Falls back gracefully if the user revoked "Alarms &
-                // reminders" - inexact is still better than crashing.
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
-                )
+            } catch (e2: Exception) {
+                Log.e(TAG, "Failed fallback scheduling: ${e2.message}")
             }
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
-            )
         }
     }
 
     fun cancel(context: Context, id: Int) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, AlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            id,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmManager.cancel(pendingIntent)
-        pendingIntent.cancel()
+        try {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, AlarmReceiver::class.java).apply {
+                action = AlarmService.ACTION_START_ALARM
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                id,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+            Log.d(TAG, "Cancelled alarm for id=$id")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to cancel alarm id=$id: ${e.message}")
+        }
     }
 }

@@ -71,14 +71,34 @@ class NotificationService {
 
       _alarmChannel.setMethodCallHandler((call) async {
         if (call.method == 'onAlarmLaunch') {
-          onAlarmPayload?.call(call.arguments as String?);
+          final payload = call.arguments as String?;
+          if (payload != null && payload.isNotEmpty) {
+            _enableAlarmLockScreenBypass();
+            onAlarmPayload?.call(payload);
+          }
         }
       });
 
+      // Check if launched by flutter_local_notifications cold start
+      try {
+        final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+        if (launchDetails?.didNotificationLaunchApp ?? false) {
+          final payload = launchDetails?.notificationResponse?.payload;
+          if (payload != null && payload.isNotEmpty) {
+            _enableAlarmLockScreenBypass();
+            onAlarmPayload?.call(payload);
+          }
+        }
+      } catch (e) {
+        debugPrint('getNotificationAppLaunchDetails failed: $e');
+      }
+
+      // Check if launched by native AlarmService cold start
       try {
         final initialPayload =
             await _alarmChannel.invokeMethod<String>('getInitialAlarmPayload');
         if (initialPayload != null && initialPayload.isNotEmpty) {
+          _enableAlarmLockScreenBypass();
           onAlarmPayload?.call(initialPayload);
         }
       } catch (e) {
@@ -121,6 +141,33 @@ class NotificationService {
       await _alarmChannel.invokeMethod('requestOverlayPermission');
     } catch (e) {
       debugPrint('requestOverlayPermission failed: $e');
+    }
+  }
+
+  Future<bool> hasIgnoreBatteryOptimizations() async {
+    try {
+      final result = await _alarmChannel
+          .invokeMethod<bool>('hasIgnoreBatteryOptimizations');
+      return result ?? false;
+    } catch (e) {
+      debugPrint('hasIgnoreBatteryOptimizations failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> requestIgnoreBatteryOptimizations() async {
+    try {
+      await _alarmChannel.invokeMethod('requestIgnoreBatteryOptimizations');
+    } catch (e) {
+      debugPrint('requestIgnoreBatteryOptimizations failed: $e');
+    }
+  }
+
+  Future<void> requestDisableAutoRevoke() async {
+    try {
+      await _alarmChannel.invokeMethod('requestDisableAutoRevoke');
+    } catch (e) {
+      debugPrint('requestDisableAutoRevoke failed: $e');
     }
   }
 
@@ -334,7 +381,7 @@ class NotificationService {
   }
 
   NotificationDetails _details() {
-    return NotificationDetails(
+    return const NotificationDetails(
       android: AndroidNotificationDetails(
         'medicine_reminders',
         'Medicine Reminders',
