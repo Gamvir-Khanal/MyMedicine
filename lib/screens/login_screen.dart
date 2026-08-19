@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../utils/app_theme.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/social_auth_button.dart';
@@ -34,37 +35,122 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate front-end authentication loading
-    await Future.delayed(const Duration(milliseconds: 900));
+    try {
+      await AuthService.instance.signInWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 10),
-            Text('Signed in successfully! Welcome back.'),
-          ],
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Signed in successfully! Welcome back.'),
+            ],
+          ),
+          backgroundColor: Color(0xFF2E7D6B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12))),
         ),
-        backgroundColor: Color(0xFF2E7D6B),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12))),
-      ),
-    );
+      );
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(e.toString())),
+            ],
+          ),
+          backgroundColor: AppTheme.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
+  void _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final credential = await AuthService.instance.signInWithGoogle();
+      if (credential == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      final displayName = credential.user?.displayName ??
+          credential.user?.email ??
+          'Google User';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Text('Signed in as $displayName!'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF2E7D6B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(e.toString())),
+            ],
+          ),
+          backgroundColor: AppTheme.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   void _handleGuestLogin() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    }
   }
 
   void _showForgotPasswordSheet() {
@@ -191,23 +277,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                   return;
                                 }
                                 setSheetState(() => isSending = true);
-                                await Future.delayed(
-                                    const Duration(milliseconds: 800));
-                                if (!context.mounted) return;
-                                Navigator.pop(bottomSheetContext);
+                                try {
+                                  await AuthService.instance
+                                      .sendPasswordResetEmail(
+                                    email: resetEmailController.text,
+                                  );
+                                  if (!context.mounted) return;
+                                  Navigator.pop(bottomSheetContext);
 
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Reset link sent to ${resetEmailController.text.trim()}!',
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Password reset email sent to ${resetEmailController.text.trim()}!',
+                                      ),
+                                      backgroundColor: AppTheme.primary,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
                                     ),
-                                    backgroundColor: AppTheme.primary,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                  );
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  setSheetState(() => isSending = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(e.toString()),
+                                      backgroundColor: AppTheme.danger,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
+                                }
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primary,
@@ -663,51 +766,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Social Buttons Row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SocialAuthButton(
-                              type: SocialAuthType.google,
-                              label: 'Google',
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Google Sign-in demo tapped'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SocialAuthButton(
-                              type: SocialAuthType.apple,
-                              label: 'Apple',
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Apple Sign-in demo tapped'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          SocialAuthButton(
-                            type: SocialAuthType.biometrics,
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Biometrics authentication demo'),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
+                      // Google Sign-in Button
+                      SocialAuthButton(
+                        type: SocialAuthType.google,
+                        label: 'Continue with Google',
+                        isFullWidth: true,
+                        onTap: _handleGoogleSignIn,
                       ),
 
                       const SizedBox(height: 22),

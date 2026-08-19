@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../services/app_settings_service.dart';
 import '../utils/app_theme.dart';
-import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -226,32 +225,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text('Account',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.person_outline_rounded,
-                    color: AppTheme.primary),
-              ),
-              title: const Text('Sign In or Register',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Sync reminders and backup medicine data'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              },
             ),
           ),
           const SizedBox(height: 24),

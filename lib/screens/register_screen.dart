@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../utils/app_theme.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/password_strength_indicator.dart';
@@ -42,10 +43,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please accept the Terms & Privacy Policy to continue'),
+          content: const Text(
+              'Please accept the Terms & Privacy Policy to continue'),
           backgroundColor: AppTheme.danger,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -53,32 +56,116 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate registration loading
-    await Future.delayed(const Duration(milliseconds: 1000));
+    try {
+      await AuthService.instance.signUpWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+        name: _nameController.text,
+        phone: _phoneController.text,
+      );
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 10),
-            Text('Account created successfully! Welcome to MyMedicine.'),
-          ],
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Account created ! Welcome to MyMedicine.'),
+            ],
+          ),
+          backgroundColor: Color(0xFF2E7D6B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12))),
         ),
-        backgroundColor: Color(0xFF2E7D6B),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12))),
-      ),
-    );
+      );
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-      (route) => false,
-    );
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(e.toString())),
+            ],
+          ),
+          backgroundColor: AppTheme.danger,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
+  void _handleGoogleSignUp() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final credential = await AuthService.instance.signInWithGoogle();
+      if (credential == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      final displayName = credential.user?.displayName ??
+          credential.user?.email ??
+          'Google User';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Text('Registered as $displayName!'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF2E7D6B),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(e.toString())),
+            ],
+          ),
+          backgroundColor: AppTheme.danger,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   void _showTermsDialog() {
@@ -131,9 +218,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _passwordController.text == _confirmPasswordController.text;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF101412)
-          : const Color(0xFFF7FAF8),
+      backgroundColor:
+          isDark ? const Color(0xFF101412) : const Color(0xFFF7FAF8),
       body: Stack(
         children: [
           // Background ambient gradient circles
@@ -167,8 +253,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 // Top Custom App Bar with Back Button
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
                   child: Row(
                     children: [
                       InkWell(
@@ -177,9 +263,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF1C221F)
-                                : Colors.white,
+                            color:
+                                isDark ? const Color(0xFF1C221F) : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isDark
@@ -192,31 +277,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             size: 18,
                             color: isDark ? Colors.white : Colors.black87,
                           ),
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.lock_outline_rounded,
-                                size: 13, color: primaryColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              '256-Bit Encrypted',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: primaryColor,
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ],
@@ -252,8 +312,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: primaryColor
-                                            .withValues(alpha: 0.3),
+                                        color:
+                                            primaryColor.withValues(alpha: 0.3),
                                         blurRadius: 16,
                                         offset: const Offset(0, 6),
                                       ),
@@ -322,7 +382,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 AuthTextField(
                                   controller: _nameController,
                                   labelText: 'Full Name',
-                                  hintText: 'e.g. Sarah Jenkins',
+                                  hintText: 'e.g. Gamvir Khanal',
                                   prefixIcon: Icons.person_outline_rounded,
                                   autofillHints: const [AutofillHints.name],
                                   validator: (val) {
@@ -341,7 +401,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 AuthTextField(
                                   controller: _emailController,
                                   labelText: 'Email Address',
-                                  hintText: 'sarah@example.com',
+                                  hintText: 'soni143@example.com',
                                   prefixIcon: Icons.alternate_email_rounded,
                                   keyboardType: TextInputType.emailAddress,
                                   autofillHints: const [AutofillHints.email],
@@ -363,7 +423,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 AuthTextField(
                                   controller: _phoneController,
                                   labelText: 'Phone Number (Optional)',
-                                  hintText: '+1 (555) 234-5678',
+                                  hintText: '+91 8122535477',
                                   prefixIcon: Icons.phone_outlined,
                                   keyboardType: TextInputType.phone,
                                   autofillHints: const [
@@ -517,8 +577,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                                       fontWeight:
                                                           FontWeight.w700,
                                                       color: primaryColor,
-                                                      decoration:
-                                                          TextDecoration.underline,
+                                                      decoration: TextDecoration
+                                                          .underline,
                                                       decorationColor:
                                                           primaryColor,
                                                     ),
@@ -550,8 +610,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: primaryColor
-                                            .withValues(alpha: 0.35),
+                                        color: primaryColor.withValues(
+                                            alpha: 0.35),
                                         blurRadius: 16,
                                         offset: const Offset(0, 6),
                                       ),
@@ -642,39 +702,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Social Auth row
-                          Row(
-                            children: [
-                              Expanded(
-                                child: SocialAuthButton(
-                                  type: SocialAuthType.google,
-                                  label: 'Google',
-                                  onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Google Sign-up demo tapped'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: SocialAuthButton(
-                                  type: SocialAuthType.apple,
-                                  label: 'Apple',
-                                  onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Apple Sign-up demo tapped'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+                          // Social Auth button
+                          SocialAuthButton(
+                            type: SocialAuthType.google,
+                            label: 'Sign up with Google',
+                            isFullWidth: true,
+                            onTap: _handleGoogleSignUp,
                           ),
 
                           const SizedBox(height: 24),
