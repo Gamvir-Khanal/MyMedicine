@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "877149180638",
+    "project_id": "mymedicine-auth",
+    "storage_bucket": "mymedicine-auth.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:877149180638:android:7a9f8d6d3916c5c8f0e84f",
+        "android_client_info": {
+          "package_name": "com.example.med_reminder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPOppC0TxUJqUImfj0RydAaeFLu2-A6PU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
