@@ -348,6 +348,11 @@ class _EmergencyContactSetupScreenState
   }) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: TextStyle(
+        fontSize: 14,
+        color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+        fontWeight: FontWeight.normal,
+      ),
       prefixIcon: Icon(icon, size: 20),
       filled: true,
       fillColor: isDark ? const Color(0xFF232B27) : const Color(0xFFF4F7F5),

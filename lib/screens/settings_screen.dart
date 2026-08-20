@@ -64,6 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Emergency contact saved')),
         );
+        Navigator.of(context).pop();
       }
     } finally {
       if (mounted) setState(() => _savingContact = false);
@@ -92,6 +93,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -114,7 +118,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Name'),
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        hintText: 'e.g. Soni Khanal',
+                        hintStyle: TextStyle(
+                          fontSize: 14,
+                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
                       validator: (v) {
                         final phone = _phoneController.text.trim();
                         if (phone.isNotEmpty &&
@@ -127,8 +139,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _phoneController,
-                      decoration:
-                          const InputDecoration(labelText: 'Phone number'),
+                      decoration: InputDecoration(
+                        labelText: 'Phone number',
+                        hintText: 'e.g. +91 9876543210',
+                        hintStyle: TextStyle(
+                          fontSize: 14,
+                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
                       keyboardType: TextInputType.phone,
                       validator: (v) {
                         final name = _nameController.text.trim();
