@@ -5,7 +5,7 @@ import '../utils/app_theme.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/password_strength_indicator.dart';
 import '../widgets/social_auth_button.dart';
-import 'home_screen.dart';
+import 'emergency_contact_setup_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -84,7 +84,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+            builder: (_) => const EmergencyContactSetupScreen()),
         (route) => false,
       );
     } catch (e) {
@@ -143,7 +144,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+            builder: (_) => const EmergencyContactSetupScreen()),
         (route) => false,
       );
     } catch (e) {

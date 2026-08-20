@@ -82,6 +82,58 @@ class Reminder {
     };
   }
 
+  /// Serialises for Firestore — stores isActive as bool and daysOfWeek as List<int>.
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'id': id,
+      'medicineId': medicineId,
+      'medicineName': medicineName,
+      'type': type.name,
+      'frequency': frequency.name,
+      'hour': hour,
+      'minute': minute,
+      'daysOfWeek': daysOfWeek,
+      'specificDate': specificDate?.toIso8601String(),
+      'isActive': isActive,
+      'note': note,
+      'notificationId': notificationId,
+      'customSoundPath': customSoundPath,
+    };
+  }
+
+  factory Reminder.fromFirestoreMap(Map<String, dynamic> map) {
+    final rawDays = map['daysOfWeek'];
+    final List<int> days;
+    if (rawDays is List) {
+      days = rawDays.map((e) => (e as num).toInt()).toList();
+    } else if (rawDays is String && rawDays.isNotEmpty) {
+      days = rawDays.split(',').map(int.parse).toList();
+    } else {
+      days = [];
+    }
+    return Reminder(
+      id: map['id'] as String,
+      medicineId: map['medicineId'] as String,
+      medicineName: map['medicineName'] as String,
+      type: ReminderType.values.firstWhere((e) => e.name == map['type']),
+      frequency: ReminderFrequency.values
+          .firstWhere((e) => e.name == map['frequency']),
+      hour: (map['hour'] as num).toInt(),
+      minute: (map['minute'] as num).toInt(),
+      daysOfWeek: days,
+      specificDate: map['specificDate'] == null
+          ? null
+          : DateTime.parse(map['specificDate'] as String),
+      isActive: map['isActive'] is bool
+          ? map['isActive'] as bool
+          : (map['isActive'] as int) == 1,
+      note: map['note'] as String? ?? '',
+      notificationId: (map['notificationId'] as num?)?.toInt() ??
+          ((map['id'] as String).hashCode & 0x7fffffff),
+      customSoundPath: map['customSoundPath'] as String?,
+    );
+  }
+
   factory Reminder.fromMap(Map<String, dynamic> map) {
     return Reminder(
       id: map['id'] as String,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +12,7 @@ import 'providers/medicine_provider.dart';
 import 'providers/reminder_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
+import 'services/auth_service.dart';
 import 'services/reminder_api_service.dart';
 import 'utils/app_theme.dart';
 import 'utils/constants.dart';
@@ -224,11 +226,9 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-            create: (_) => MedicineProvider()..loadMedicines()),
-        ChangeNotifierProvider(
-            create: (_) => ReminderProvider()..loadReminders()),
-        ChangeNotifierProvider(create: (_) => DoseLogProvider()..loadLogs()),
+        ChangeNotifierProvider(create: (_) => MedicineProvider()),
+        ChangeNotifierProvider(create: (_) => ReminderProvider()),
+        ChangeNotifierProvider(create: (_) => DoseLogProvider()),
         ChangeNotifierProvider.value(value: widget.themeProvider),
       ],
       child: Consumer<ThemeProvider>(
@@ -240,10 +240,71 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
-            home: const HomeScreen(),
+            home: const _AuthStateListener(child: HomeScreen()),
           );
         },
       ),
     );
   }
+}
+
+/// Listens to Firebase auth state changes and reloads / clears all data
+/// providers accordingly.
+/// - On sign-in  → reload all providers from Firestore (account data).
+/// - On sign-out → clear all providers so the guest session starts fresh.
+class _AuthStateListener extends StatefulWidget {
+  const _AuthStateListener({required this.child});
+  final Widget child;
+
+  @override
+  State<_AuthStateListener> createState() => _AuthStateListenerState();
+}
+
+class _AuthStateListenerState extends State<_AuthStateListener> {
+  StreamSubscription<User?>? _authSub;
+  String? _previousUid;
+
+  @override
+  void initState() {
+    super.initState();
+    // Trigger initial load once the widget tree is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _reloadProviders();
+    });
+
+    _authSub = AuthService.instance.authStateChanges.listen((user) {
+      final newUid = user?.uid;
+      if (newUid == _previousUid) return; // no change, skip
+      _previousUid = newUid;
+      if (!mounted) return;
+
+      if (newUid != null) {
+        // User logged in — load their cloud data.
+        _reloadProviders();
+      } else {
+        // User logged out — wipe in-memory state for a clean guest session.
+        context.read<MedicineProvider>().clear();
+        context.read<ReminderProvider>().clear();
+        context.read<DoseLogProvider>().clear();
+        // Then load local (SQLite) guest data.
+        _reloadProviders();
+      }
+    });
+  }
+
+  void _reloadProviders() {
+    if (!mounted) return;
+    context.read<MedicineProvider>().loadMedicines();
+    context.read<ReminderProvider>().loadReminders();
+    context.read<DoseLogProvider>().loadLogs();
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

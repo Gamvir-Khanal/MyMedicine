@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/medicine.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 import '../services/reminder_api_service.dart';
 
 class MedicineProvider extends ChangeNotifier {
-  final DatabaseService _db = DatabaseService.instance;
+  final DatabaseService _localDb = DatabaseService.instance;
+  final FirestoreService _firestore = FirestoreService.instance;
   final ReminderApiService _reminderApi = ReminderApiService();
   final _uuid = const Uuid();
 
@@ -31,11 +34,25 @@ class MedicineProvider extends ChangeNotifier {
     return sorted.take(limit).toList();
   }
 
+  /// Returns the current user's UID, or null if the user is a guest.
+  String? get _uid => AuthService.instance.currentUser?.uid;
+
   Future<void> loadMedicines() async {
     _isLoading = true;
     notifyListeners();
-    _medicines = await _db.getAllMedicines();
+    final uid = _uid;
+    if (uid != null) {
+      _medicines = await _firestore.getAllMedicines(uid);
+    } else {
+      _medicines = await _localDb.getAllMedicines();
+    }
     _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Clears the in-memory list (called on sign-out so guest sees a clean slate).
+  void clear() {
+    _medicines = [];
     notifyListeners();
   }
 
@@ -59,7 +76,13 @@ class MedicineProvider extends ChangeNotifier {
       instructions: instructions,
     );
 
-    await _db.insertMedicine(medicine);
+    final uid = _uid;
+    if (uid != null) {
+      await _firestore.insertMedicine(uid, medicine);
+    } else {
+      await _localDb.insertMedicine(medicine);
+    }
+
     try {
       await _reminderApi.scheduleExpiryAlerts(medicine);
     } catch (e) {
@@ -75,7 +98,12 @@ class MedicineProvider extends ChangeNotifier {
     final index = _medicines.indexWhere((m) => m.id == updated.id);
     final wasLowStock = index != -1 ? _medicines[index].isLowStock : false;
 
-    await _db.updateMedicine(updated);
+    final uid = _uid;
+    if (uid != null) {
+      await _firestore.updateMedicine(uid, updated);
+    } else {
+      await _localDb.updateMedicine(updated);
+    }
 
     try {
       await _reminderApi.cancelExpiryAlerts(updated);
@@ -102,7 +130,12 @@ class MedicineProvider extends ChangeNotifier {
   }
 
   Future<void> deleteMedicine(Medicine medicine) async {
-    await _db.deleteMedicine(medicine.id);
+    final uid = _uid;
+    if (uid != null) {
+      await _firestore.deleteMedicine(uid, medicine.id);
+    } else {
+      await _localDb.deleteMedicine(medicine.id);
+    }
     try {
       await _reminderApi.cancelExpiryAlerts(medicine);
     } catch (e) {

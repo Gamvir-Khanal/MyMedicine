@@ -2,10 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/dose_log.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 
 class DoseLogProvider extends ChangeNotifier {
-  final DatabaseService _db = DatabaseService.instance;
+  final DatabaseService _localDb = DatabaseService.instance;
+  final FirestoreService _firestore = FirestoreService.instance;
   final _uuid = const Uuid();
 
   List<DoseLog> _logs = [];
@@ -14,11 +17,25 @@ class DoseLogProvider extends ChangeNotifier {
   List<DoseLog> get logs => List.unmodifiable(_logs);
   bool get isLoading => _isLoading;
 
+  /// Returns the current user's UID, or null if the user is a guest.
+  String? get _uid => AuthService.instance.currentUser?.uid;
+
   Future<void> loadLogs() async {
     _isLoading = true;
     notifyListeners();
-    _logs = await _db.getAllDoseLogs();
+    final uid = _uid;
+    if (uid != null) {
+      _logs = await _firestore.getAllDoseLogs(uid);
+    } else {
+      _logs = await _localDb.getAllDoseLogs();
+    }
     _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Clears the in-memory list (called on sign-out so guest sees a clean slate).
+  void clear() {
+    _logs = [];
     notifyListeners();
   }
 
@@ -39,7 +56,12 @@ class DoseLogProvider extends ChangeNotifier {
       status: status,
     );
     try {
-      await _db.insertDoseLog(log);
+      final uid = _uid;
+      if (uid != null) {
+        await _firestore.insertDoseLog(uid, log);
+      } else {
+        await _localDb.insertDoseLog(log);
+      }
       _logs.insert(0, log);
       notifyListeners();
     } catch (e) {
