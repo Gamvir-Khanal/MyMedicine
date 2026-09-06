@@ -112,7 +112,6 @@ class AuthService {
     }
   }
 
-  /// Helper to convert Firebase Auth exceptions into clean human-readable text
   static String getReadableErrorMessage(dynamic error) {
     if (error is FirebaseAuthException) {
       switch (error.code) {

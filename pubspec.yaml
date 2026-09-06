@@ -16,8 +16,9 @@ dependencies:
   # State management
   provider: ^6.1.2
 
-  # Local database
-  sqflite: ^2.3.3
+  # Local database — AES-256 encrypted via SQLCipher
+  sqflite_sqlcipher: ^3.4.1
+  flutter_secure_storage: ^9.2.2
   path: ^1.9.0
   path_provider: ^2.1.6
 

@@ -1,5 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'auth_service.dart';
+import 'firestore_service.dart';
+
 class EmergencyContact {
   final String name;
   final String phoneNumber;
@@ -23,17 +26,64 @@ class AppSettingsService {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString(_kContactName);
     final phone = prefs.getString(_kContactPhone);
-    if (name == null || phone == null || phone.trim().isEmpty) return null;
-    return EmergencyContact(name: name, phoneNumber: phone);
+    if (name != null && phone != null && phone.trim().isNotEmpty) {
+      return EmergencyContact(name: name, phoneNumber: phone);
+    }
+
+    // Fallback: If not cached locally, check Firestore for logged-in user
+    final uid = AuthService.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        final cloudData =
+            await FirestoreService.instance.getEmergencyContact(uid);
+        if (cloudData != null &&
+            cloudData['phoneNumber']?.trim().isNotEmpty == true) {
+          final c = EmergencyContact(
+            name: cloudData['name'] ?? '',
+            phoneNumber: cloudData['phoneNumber'] ?? '',
+          );
+          // Cache locally for offline availability
+          await prefs.setString(_kContactName, c.name);
+          await prefs.setString(_kContactPhone, c.phoneNumber);
+          return c;
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   Future<void> setEmergencyContact(EmergencyContact contact) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kContactName, contact.name);
     await prefs.setString(_kContactPhone, contact.phoneNumber);
+
+    final uid = AuthService.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await FirestoreService.instance.saveEmergencyContact(
+          uid,
+          contact.name,
+          contact.phoneNumber,
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> clearEmergencyContact() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kContactName);
+    await prefs.remove(_kContactPhone);
+
+    final uid = AuthService.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await FirestoreService.instance.deleteEmergencyContact(uid);
+      } catch (_) {}
+    }
+  }
+
+  /// Clears only the local cached emergency contact (called on sign-out).
+  Future<void> clearLocalCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kContactName);
     await prefs.remove(_kContactPhone);

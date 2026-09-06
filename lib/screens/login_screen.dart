@@ -143,14 +143,190 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Shows a privacy notice explaining guest-mode data handling, then
+  /// navigates to HomeScreen after the user confirms.
   void _handleGuestLogin() {
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: EdgeInsets.only(
+          top: 24,
+          left: 24,
+          right: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF181C1A) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Icon + title row
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.shield_outlined,
+                    color: primaryColor,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Guest Mode — Privacy Notice',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF1E2923),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Please read before continuing',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Info tiles
+            _PrivacyTile(
+              icon: Icons.phone_android_rounded,
+              color: const Color(0xFF2E7D6B),
+              title: 'Data stays on your device',
+              subtitle:
+                  'All medicines, reminders and dose logs are saved locally on this phone only. Nothing is uploaded to any server.',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _PrivacyTile(
+              icon: Icons.lock_rounded,
+              color: const Color(0xFF1565C0),
+              title: 'Encrypted with AES-256',
+              subtitle:
+                  'Your local data is protected with military-grade encryption. It cannot be read by other apps or via USB backup.',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _PrivacyTile(
+              icon: Icons.delete_sweep_rounded,
+              color: const Color(0xFFB94040),
+              title: 'Data is lost on uninstall',
+              subtitle:
+                  'Because there is no account, your data cannot be recovered if you uninstall the app or switch phones. Sign up to keep your data safe.',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 24),
+
+            // Confirm button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // close sheet
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const HomeScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle_outline_rounded,
+                        color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Got it, Continue as Guest',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Sign-up nudge
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const RegisterScreen(),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Create a free account instead',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showForgotPasswordSheet() {
@@ -778,15 +954,34 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       // Guest Mode / Explore Without Login
                       Center(
-                        child: InkWell(
+                        child: GestureDetector(
                           onTap: _handleGuestLogin,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
+                          child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white12
+                                    : Colors.grey.shade300,
+                                width: 1,
+                              ),
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.04)
+                                  : Colors.grey.shade50,
+                            ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 18,
+                                  color: isDark
+                                      ? Colors.grey.shade300
+                                      : Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 8),
                                 Text(
                                   'Continue as Guest',
                                   style: TextStyle(
@@ -856,6 +1051,65 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A single info row used inside the guest-mode privacy notice sheet.
+class _PrivacyTile extends StatelessWidget {
+  const _PrivacyTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.isDark,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF1E2923),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.45,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

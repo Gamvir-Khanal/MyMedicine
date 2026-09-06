@@ -89,4 +89,36 @@ class FirestoreService {
         .get();
     return snapshot.docs.map((doc) => DoseLog.fromMap(doc.data())).toList();
   }
+
+  // ─── Emergency Contact ───────────────────────────────────────────────────
+
+  Future<void> saveEmergencyContact(
+      String uid, String name, String phoneNumber) async {
+    await _db.collection('users').doc(uid).set({
+      'emergencyContact': {
+        'name': name,
+        'phoneNumber': phoneNumber,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }
+    }, SetOptions(merge: true));
+  }
+
+  Future<Map<String, String>?> getEmergencyContact(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists) return null;
+    final data = doc.data();
+    if (data == null || !data.containsKey('emergencyContact')) return null;
+    final contact = data['emergencyContact'] as Map<String, dynamic>?;
+    if (contact == null) return null;
+    final name = contact['name'] as String? ?? '';
+    final phone = contact['phoneNumber'] as String? ?? '';
+    if (name.isEmpty && phone.isEmpty) return null;
+    return {'name': name, 'phoneNumber': phone};
+  }
+
+  Future<void> deleteEmergencyContact(String uid) async {
+    await _db.collection('users').doc(uid).set({
+      'emergencyContact': FieldValue.delete(),
+    }, SetOptions(merge: true));
+  }
 }

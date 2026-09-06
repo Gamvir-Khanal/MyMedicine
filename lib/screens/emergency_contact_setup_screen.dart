@@ -66,7 +66,7 @@ class _EmergencyContactSetupScreenState
       backgroundColor:
           isDark ? const Color(0xFF101412) : const Color(0xFFF7FAF8),
       body: Stack(
-        children: [
+        children: <Widget>[
           // Ambient gradient circles (same style as RegisterScreen)
           Positioned(
             top: -60,
@@ -94,11 +94,14 @@ class _EmergencyContactSetupScreenState
           ),
 
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   // ── Header ──────────────────────────────────────────────
                   const SizedBox(height: 16),
                   Center(
@@ -323,9 +326,10 @@ class _EmergencyContactSetupScreenState
               ),
             ),
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
   }
 
   Widget _buildLabel(String text, bool isDark) {

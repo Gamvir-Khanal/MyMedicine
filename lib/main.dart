@@ -12,6 +12,8 @@ import 'providers/medicine_provider.dart';
 import 'providers/reminder_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/app_settings_service.dart';
 import 'services/auth_service.dart';
 import 'services/reminder_api_service.dart';
 import 'utils/app_theme.dart';
@@ -139,9 +141,9 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
     final changed = await NotificationService.instance.refreshLocalTimezone();
     if (!changed || !mounted) return;
 
-    final context = navigatorKey.currentContext;
-    if (context == null || !mounted) return;
-    await context.read<ReminderProvider>().rescheduleAllForTimezoneChange();
+    final navCtx = navigatorKey.currentContext;
+    if (navCtx == null || !navCtx.mounted) return;
+    await navCtx.read<ReminderProvider>().rescheduleAllForTimezoneChange();
   }
 
   Future<void> _checkOverlayPermission() async {
@@ -149,11 +151,11 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
     if (!mounted) return;
 
     if (!granted) {
-      final context = navigatorKey.currentContext;
-      if (context == null || !mounted) return;
+      final navCtx = navigatorKey.currentContext;
+      if (navCtx == null || !navCtx.mounted) return;
 
       await showDialog(
-        context: context,
+        context: navCtx,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Allow alarm to appear over other apps'),
           content: const Text(
@@ -190,11 +192,11 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
         await NotificationService.instance.hasIgnoreBatteryOptimizations();
     if (ignoring || !mounted) return;
 
-    final context = navigatorKey.currentContext;
-    if (context == null || !mounted) return;
+    final navCtx = navigatorKey.currentContext;
+    if (navCtx == null || !navCtx.mounted) return;
 
     showDialog(
-      context: context,
+      context: navCtx,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Allow alarm to run without battery restrictions'),
         content: const Text(
@@ -233,18 +235,40 @@ class _SmartMedicineCabinetAppState extends State<SmartMedicineCabinetApp>
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
-          return MaterialApp(
-            navigatorKey: navigatorKey,
-            title: AppConstants.appName,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.themeMode,
-            home: const _AuthStateListener(child: HomeScreen()),
+          return _AuthStateListener(
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              title: AppConstants.appName,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: themeProvider.themeMode,
+              home: const _AppGate(),
+            ),
           );
         },
       ),
     );
+  }
+}
+
+/// Routes the user on cold start:
+/// - No active Firebase session  → LoginScreen (guest or sign-in)
+/// - Active session              → HomeScreen
+///
+/// This guarantees the login page is always the first screen on a fresh install.
+class _AppGate extends StatelessWidget {
+  const _AppGate();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+    if (user != null) {
+      // Returning logged-in user: go straight to home.
+      return const HomeScreen();
+    }
+    // No session: show login. Once signed-in, LoginScreen pushes HomeScreen.
+    return const LoginScreen();
   }
 }
 
@@ -286,6 +310,7 @@ class _AuthStateListenerState extends State<_AuthStateListener> {
         context.read<MedicineProvider>().clear();
         context.read<ReminderProvider>().clear();
         context.read<DoseLogProvider>().clear();
+        AppSettingsService.instance.clearLocalCache();
         // Then load local (SQLite) guest data.
         _reloadProviders();
       }
