@@ -24,13 +24,15 @@ class ReminderApiService {
 
     switch (reminder.frequency) {
       case ReminderFrequency.daily:
+        final dailyPayload =
+            '$payload|daily|${reminder.hour}|${reminder.minute}|0';
         await _notifications.scheduleDailyReminder(
           id: reminder.notificationId,
           title: title,
           body: body,
           hour: reminder.hour,
           minute: reminder.minute,
-          payload: payload,
+          payload: dailyPayload,
         );
         break;
       case ReminderFrequency.specificDays:
@@ -53,12 +55,14 @@ class ReminderApiService {
             reminder.hour,
             reminder.minute,
           );
+          final oncePayload =
+              '$payload|once|${reminder.hour}|${reminder.minute}|0';
           await _notifications.scheduleOneTime(
             id: reminder.notificationId,
             title: title,
             body: body,
             dateTime: dt,
-            payload: payload,
+            payload: oncePayload,
           );
         }
         break;

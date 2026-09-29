@@ -35,6 +35,15 @@ class ReminderProvider extends ChangeNotifier {
     } else {
       _reminders = await _localDb.getAllReminders();
     }
+
+    for (final reminder in _reminders.where((r) => r.isActive)) {
+      try {
+        await _reminderApi.scheduleReminder(reminder);
+      } catch (e) {
+        debugPrint('loadReminders: reschedule failed for ${reminder.id}: $e');
+      }
+    }
+
     _isLoading = false;
     notifyListeners();
   }

@@ -16,6 +16,10 @@ class AlarmReceiver : BroadcastReceiver() {
         val payload = intent.getStringExtra("payload") ?: ""
         Log.d(TAG, "onReceive triggered for alarm id=$id")
 
+        if (id != 0 && payload.isNotEmpty()) {
+            AlarmScheduler.rescheduleNextIfNeeded(context, id, payload)
+        }
+
         val serviceIntent = Intent(context, AlarmService::class.java).apply {
             action = AlarmService.ACTION_START_ALARM
             putExtra("id", id)

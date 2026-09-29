@@ -227,6 +227,9 @@ class NotificationService {
     for (final day in daysOfWeek) {
       try {
         final scheduledDate = _nextInstanceOfWeekday(hour, minute, day);
+        final dayPayload = payload != null
+            ? '$payload|specificDays|$hour|$minute|$day'
+            : null;
         await _plugin.zonedSchedule(
           id + day, // unique id per weekday
           title,
@@ -237,10 +240,10 @@ class NotificationService {
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
-          payload: payload,
+          payload: dayPayload,
         );
 
-        await _scheduleNativeAlarm(id + day, scheduledDate, payload);
+        await _scheduleNativeAlarm(id + day, scheduledDate, dayPayload);
       } catch (e, st) {
         debugPrint('scheduleOnSpecificDays failed for day $day: $e\n$st');
       }

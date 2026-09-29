@@ -18,7 +18,7 @@
 
 - [Overview](#-overview)
 - [Features](#-features)
-- [Screenshots & Screens](#-screens)
+- [Screens](#-screens)
 - [Architecture](#-architecture)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)

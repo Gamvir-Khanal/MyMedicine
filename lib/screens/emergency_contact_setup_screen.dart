@@ -102,234 +102,231 @@ class _EmergencyContactSetupScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                  // ── Header ──────────────────────────────────────────────
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
+                    // ── Header ──────────────────────────────────────────────
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              primaryColor,
+                              const Color(0xFF1D5A4C),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryColor.withValues(alpha: 0.35),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.contact_phone_rounded,
+                          size: 34,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Emergency Contact 🚨',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF1E2923),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Add someone we can show on your alarm screen\nin case of an emergency.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        height: 1.45,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // ── Form card ───────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF191F1C) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.grey.shade200,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black
+                                .withValues(alpha: isDark ? 0.3 : 0.05),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Name field
+                            _buildLabel('Contact Name', isDark),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _nameController,
+                              textCapitalization: TextCapitalization.words,
+                              decoration: _inputDecoration(
+                                hint: 'e.g. Soni Khanal',
+                                icon: Icons.person_outline_rounded,
+                                isDark: isDark,
+                                primaryColor: primaryColor,
+                              ),
+                              validator: (v) {
+                                final phone = _phoneController.text.trim();
+                                if (phone.isNotEmpty &&
+                                    (v == null || v.trim().isEmpty)) {
+                                  return 'Name is required when a phone is set';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Phone field
+                            _buildLabel('Phone Number', isDark),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              textInputAction: TextInputAction.done,
+                              decoration: _inputDecoration(
+                                hint: 'e.g. +91 9876543210',
+                                icon: Icons.phone_outlined,
+                                isDark: isDark,
+                                primaryColor: primaryColor,
+                              ),
+                              validator: (v) {
+                                final name = _nameController.text.trim();
+                                if (name.isNotEmpty &&
+                                    (v == null || v.trim().isEmpty)) {
+                                  return 'Phone is required when a name is set';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ── Save button ─────────────────────────────────────────
+                    Container(
+                      height: 52,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [
-                            primaryColor,
-                            const Color(0xFF1D5A4C),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                          colors: [primaryColor, const Color(0xFF1E6354)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
                         ),
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
                             color: primaryColor.withValues(alpha: 0.35),
-                            blurRadius: 18,
+                            blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.contact_phone_rounded,
-                        size: 34,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Emergency Contact 🚨',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color:
-                          isDark ? Colors.white : const Color(0xFF1E2923),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Add someone we can show on your alarm screen\nin case of an emergency.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      height: 1.45,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ── Form card ───────────────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF191F1C)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.grey.shade200,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black
-                              .withValues(alpha: isDark ? 0.3 : 0.05),
-                          blurRadius: 24,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Name field
-                          _buildLabel('Contact Name', isDark),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _nameController,
-                            textCapitalization: TextCapitalization.words,
-                            decoration: _inputDecoration(
-                              hint: 'e.g. Soni Khanal',
-                              icon: Icons.person_outline_rounded,
-                              isDark: isDark,
-                              primaryColor: primaryColor,
-                            ),
-                            validator: (v) {
-                              final phone = _phoneController.text.trim();
-                              if (phone.isNotEmpty &&
-                                  (v == null || v.trim().isEmpty)) {
-                                return 'Name is required when a phone is set';
-                              }
-                              return null;
-                            },
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          const SizedBox(height: 16),
-
-                          // Phone field
-                          _buildLabel('Phone Number', isDark),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.done,
-                            decoration: _inputDecoration(
-                              hint: 'e.g. +91 9876543210',
-                              icon: Icons.phone_outlined,
-                              isDark: isDark,
-                              primaryColor: primaryColor,
-                            ),
-                            validator: (v) {
-                              final name = _nameController.text.trim();
-                              if (name.isNotEmpty &&
-                                  (v == null || v.trim().isEmpty)) {
-                                return 'Phone is required when a name is set';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── Save button ─────────────────────────────────────────
-                  Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [primaryColor, const Color(0xFF1E6354)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.35),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
                         ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: _isSaving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.save_rounded,
-                                    size: 18, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Save & Continue',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 0.3,
-                                  ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
                                 ),
-                              ],
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // ── Skip link ───────────────────────────────────────────
-                  Center(
-                    child: TextButton(
-                      onPressed: _isSaving ? null : _goHome,
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.save_rounded,
+                                      size: 18, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Save & Continue',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
-                      child: const Text(
-                        'Skip for now',
-                        style: TextStyle(fontSize: 14),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // ── Skip link ───────────────────────────────────────────
+                    Center(
+                      child: TextButton(
+                        onPressed: _isSaving ? null : _goHome,
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                        ),
+                        child: const Text(
+                          'Skip for now',
+                          style: TextStyle(fontSize: 14),
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 10),
-                  Text(
-                    'You can always update this later in Settings.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark
-                          ? Colors.grey.shade600
-                          : Colors.grey.shade400,
+                    const SizedBox(height: 10),
+                    Text(
+                      'You can always update this later in Settings.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade600
+                            : Colors.grey.shade400,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
   }
 
   Widget _buildLabel(String text, bool isDark) {
@@ -382,8 +379,7 @@ class _EmergencyContactSetupScreenState
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppTheme.danger, width: 1.5),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 }
